@@ -1,0 +1,74 @@
+{
+  "todo_lists": [
+    {
+      "id": 1,
+      "name": "Günlük işler",
+      "created_at": "2025-05-01T08:00:00Z",
+      "updated_at": "2025-05-01T08:00:00Z",
+      "deleted_at": "0001-01-01T00:00:00Z",
+      "completion_percentage": 0,
+      "todo_items": [
+        {
+          "id": 1,
+          "todo_list_id": 1,
+          "created_at": "2025-05-01T08:10:00Z",
+          "updated_at": "2025-05-01T08:10:00Z",
+          "deleted_at": "0001-01-01T00:00:00Z",
+          "content": "Çamaşır yıka",
+          "is_completed": false
+        },
+        {
+          "id": 2,
+          "todo_list_id": 1,
+          "created_at": "2025-05-01T08:15:00Z",
+          "updated_at": "2025-05-01T08:15:00Z",
+          "deleted_at": "0001-01-01T00:00:00Z",
+          "content": "Alışveriş yap",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Deneme Listesi",
+      "created_at": "2025-05-01T08:00:00Z",
+      "updated_at": "2025-05-01T08:00:00Z",
+      "deleted_at": "0001-01-01T00:00:00Z",
+      "completion_percentage": 50,
+      "todo_items": [
+        {
+          "id": 1,
+          "todo_list_id": 2,
+          "created_at": "2025-05-01T08:10:00Z",
+          "updated_at": "2025-05-01T08:10:00Z",
+          "deleted_at": "0001-01-01T00:00:00Z",
+          "content": "Deneme 1",
+          "is_completed": true
+        },
+        {
+          "id": 2,
+          "todo_list_id": 2,
+          "created_at": "2025-05-01T08:15:00Z",
+          "updated_at": "2025-05-01T08:15:00Z",
+          "deleted_at": "0001-01-01T00:00:00Z",
+          "content": "Deneme 2",
+          "is_completed": false
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "adminpass",
+      "role": "admin"
+    },
+    {
+      "id": 2,
+      "username": "user1",
+      "password": "pass1",
+      "role": "user"
+    }
+  ]
+}

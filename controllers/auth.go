@@ -33,7 +33,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	store := r.Context().Value("store").(*store.Store)
 
 	var user *models.User
-	for _, u := range store.Users {
+	for _, u := range store.GetUsers() {
 		if u.Username == loginReq.Username && u.Password == loginReq.Password {
 			user = &u
 			break
