@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/YahyaCengiz/todo-v2/models"
 )
@@ -48,27 +49,31 @@ func (s *Store) GetTodoList(id int) (*models.TodoList, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	for _, list := range s.todoLists {
-		if list.ID == id {
-			return &list, nil
+	for i := range s.todoLists {
+		if s.todoLists[i].ID == id {
+			return &s.todoLists[i], nil
 		}
 	}
 	return nil, fmt.Errorf("todo list not found")
 }
 
-func (s *Store) GetAllTodoLists() ([]models.TodoList, error) {
+func (s *Store) GetAllTodoLists() ([]*models.TodoList, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.todoLists, nil
+	lists := make([]*models.TodoList, len(s.todoLists))
+	for i := range s.todoLists {
+		lists[i] = &s.todoLists[i]
+	}
+	return lists, nil
 }
 
 func (s *Store) UpdateTodoList(todoList *models.TodoList) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for i, list := range s.todoLists {
-		if list.ID == todoList.ID {
+	for i := range s.todoLists {
+		if s.todoLists[i].ID == todoList.ID {
 			s.todoLists[i] = *todoList
 			return s.saveToFile()
 		}
@@ -80,9 +85,9 @@ func (s *Store) DeleteTodoList(id int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for i, list := range s.todoLists {
-		if list.ID == id {
-			s.todoLists = append(s.todoLists[:i], s.todoLists[i+1:]...)
+	for i := range s.todoLists {
+		if s.todoLists[i].ID == id {
+			s.todoLists[i].DeletedAt = time.Now()
 			return s.saveToFile()
 		}
 	}
@@ -94,16 +99,14 @@ func (s *Store) CreateTodoItem(todoItem *models.TodoItem) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Find the todo list
-	for i, list := range s.todoLists {
-		if list.ID == todoItem.TodoListID {
+	for i := range s.todoLists {
+		if s.todoLists[i].ID == todoItem.TodoListID {
 			// Generate new ID
-			if len(list.TodoItems) == 0 {
+			if len(s.todoLists[i].TodoItems) == 0 {
 				todoItem.ID = 1
 			} else {
-				todoItem.ID = list.TodoItems[len(list.TodoItems)-1].ID + 1
+				todoItem.ID = s.todoLists[i].TodoItems[len(s.todoLists[i].TodoItems)-1].ID + 1
 			}
-
 			s.todoLists[i].TodoItems = append(s.todoLists[i].TodoItems, *todoItem)
 			return s.saveToFile()
 		}
@@ -111,28 +114,30 @@ func (s *Store) CreateTodoItem(todoItem *models.TodoItem) error {
 	return fmt.Errorf("todo list not found")
 }
 
-func (s *Store) GetTodoItem(id int) (*models.TodoItem, error) {
+func (s *Store) GetTodoItem(listID, itemID int) (*models.TodoItem, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	for _, list := range s.todoLists {
-		for _, item := range list.TodoItems {
-			if item.ID == id {
-				return &item, nil
+	for i := range s.todoLists {
+		if s.todoLists[i].ID == listID {
+			for j := range s.todoLists[i].TodoItems {
+				if s.todoLists[i].TodoItems[j].ID == itemID {
+					return &s.todoLists[i].TodoItems[j], nil
+				}
 			}
 		}
 	}
 	return nil, fmt.Errorf("todo item not found")
 }
 
-func (s *Store) UpdateTodoItem(todoItem *models.TodoItem) error {
+func (s *Store) UpdateTodoItem(listID int, todoItem *models.TodoItem) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for i, list := range s.todoLists {
-		if list.ID == todoItem.TodoListID {
-			for j, item := range list.TodoItems {
-				if item.ID == todoItem.ID {
+	for i := range s.todoLists {
+		if s.todoLists[i].ID == listID {
+			for j := range s.todoLists[i].TodoItems {
+				if s.todoLists[i].TodoItems[j].ID == todoItem.ID {
 					s.todoLists[i].TodoItems[j] = *todoItem
 					return s.saveToFile()
 				}
@@ -142,15 +147,17 @@ func (s *Store) UpdateTodoItem(todoItem *models.TodoItem) error {
 	return fmt.Errorf("todo item not found")
 }
 
-func (s *Store) DeleteTodoItem(id int) error {
+func (s *Store) DeleteTodoItem(listID, itemID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for i, list := range s.todoLists {
-		for j, item := range list.TodoItems {
-			if item.ID == id {
-				s.todoLists[i].TodoItems = append(list.TodoItems[:j], list.TodoItems[j+1:]...)
-				return s.saveToFile()
+	for i := range s.todoLists {
+		if s.todoLists[i].ID == listID {
+			for j := range s.todoLists[i].TodoItems {
+				if s.todoLists[i].TodoItems[j].ID == itemID {
+					s.todoLists[i].TodoItems[j].DeletedAt = time.Now()
+					return s.saveToFile()
+				}
 			}
 		}
 	}
@@ -187,7 +194,9 @@ func (s *Store) saveToFile() error {
 	}
 	defer file.Close()
 
-	if err := json.NewEncoder(file).Encode(data); err != nil {
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(data); err != nil {
 		return fmt.Errorf("failed to encode JSON: %w", err)
 	}
 

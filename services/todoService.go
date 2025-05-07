@@ -29,15 +29,48 @@ func (s *TodoService) CreateTodoList(name string) (*models.TodoList, error) {
 	if err := s.store.CreateTodoList(todoList); err != nil {
 		return nil, err
 	}
-	return todoList, nil
+	return s.store.GetTodoList(todoList.ID)
 }
 
 func (s *TodoService) GetTodoList(id int) (*models.TodoList, error) {
-	return s.store.GetTodoList(id)
+	todoList, err := s.store.GetTodoList(id)
+	if err != nil {
+		return nil, err
+	}
+	if !todoList.DeletedAt.IsZero() {
+		return nil, errors.New("todo list not found")
+	}
+	// Filter out deleted items
+	filteredItems := make([]models.TodoItem, 0)
+	for _, item := range todoList.TodoItems {
+		if item.DeletedAt.IsZero() {
+			filteredItems = append(filteredItems, item)
+		}
+	}
+	todoList.TodoItems = filteredItems
+	return todoList, nil
 }
 
-func (s *TodoService) GetAllTodoLists() ([]models.TodoList, error) {
-	return s.store.GetAllTodoLists()
+func (s *TodoService) GetAllTodoLists() ([]*models.TodoList, error) {
+	lists, err := s.store.GetAllTodoLists()
+	if err != nil {
+		return nil, err
+	}
+	filteredLists := make([]*models.TodoList, 0)
+	for _, list := range lists {
+		if list.DeletedAt.IsZero() {
+			// Filter out deleted items
+			filteredItems := make([]models.TodoItem, 0)
+			for _, item := range list.TodoItems {
+				if item.DeletedAt.IsZero() {
+					filteredItems = append(filteredItems, item)
+				}
+			}
+			list.TodoItems = filteredItems
+			filteredLists = append(filteredLists, list)
+		}
+	}
+	return filteredLists, nil
 }
 
 func (s *TodoService) UpdateTodoList(id int, name string) (*models.TodoList, error) {
@@ -56,16 +89,16 @@ func (s *TodoService) UpdateTodoList(id int, name string) (*models.TodoList, err
 }
 
 func (s *TodoService) DeleteTodoList(id int) error {
-	return s.store.DeleteTodoList(id)
+	todoList, err := s.store.GetTodoList(id)
+	if err != nil {
+		return err
+	}
+	todoList.DeletedAt = time.Now()
+	return s.store.UpdateTodoList(todoList)
 }
 
 // TodoItem operations
 func (s *TodoService) CreateTodoItem(listID int, content string) (*models.TodoItem, error) {
-	todoList, err := s.store.GetTodoList(listID)
-	if err != nil {
-		return nil, err
-	}
-
 	todoItem := &models.TodoItem{
 		TodoListID:  listID,
 		Content:     content,
@@ -78,9 +111,15 @@ func (s *TodoService) CreateTodoItem(listID int, content string) (*models.TodoIt
 		return nil, err
 	}
 
-	// Update completion percentage
-	s.updateCompletionPercentage(todoList)
-	return todoItem, nil
+	// Fetch the pointer from store
+	todoList, err := s.store.GetTodoList(listID)
+	if err != nil {
+		return nil, err
+	}
+	if len(todoList.TodoItems) == 0 {
+		return nil, errors.New("failed to add todo item")
+	}
+	return &todoList.TodoItems[len(todoList.TodoItems)-1], nil
 }
 
 func (s *TodoService) UpdateTodoItem(listID, itemID int, content string, isCompleted bool) (*models.TodoItem, error) {
@@ -89,7 +128,7 @@ func (s *TodoService) UpdateTodoItem(listID, itemID int, content string, isCompl
 		return nil, err
 	}
 
-	todoItem, err := s.store.GetTodoItem(itemID)
+	todoItem, err := s.store.GetTodoItem(listID, itemID)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +141,7 @@ func (s *TodoService) UpdateTodoItem(listID, itemID int, content string, isCompl
 	todoItem.IsCompleted = isCompleted
 	todoItem.UpdatedAt = time.Now()
 
-	if err := s.store.UpdateTodoItem(todoItem); err != nil {
+	if err := s.store.UpdateTodoItem(listID, todoItem); err != nil {
 		return nil, err
 	}
 
@@ -116,30 +155,35 @@ func (s *TodoService) DeleteTodoItem(listID, itemID int) error {
 	if err != nil {
 		return err
 	}
-
-	if err := s.store.DeleteTodoItem(itemID); err != nil {
+	todoItem, err := s.store.GetTodoItem(listID, itemID)
+	if err != nil {
 		return err
 	}
-
+	todoItem.DeletedAt = time.Now()
+	if err := s.store.UpdateTodoItem(listID, todoItem); err != nil {
+		return err
+	}
 	// Update completion percentage
 	s.updateCompletionPercentage(todoList)
 	return nil
 }
 
 func (s *TodoService) updateCompletionPercentage(todoList *models.TodoList) {
-	if len(todoList.TodoItems) == 0 {
-		todoList.CompletionPercentage = 0
-		return
-	}
-
+	total := 0
 	completed := 0
 	for _, item := range todoList.TodoItems {
-		if item.IsCompleted {
-			completed++
+		if item.DeletedAt.IsZero() {
+			total++
+			if item.IsCompleted {
+				completed++
+			}
 		}
 	}
-
-	todoList.CompletionPercentage = (completed * 100) / len(todoList.TodoItems)
+	if total == 0 {
+		todoList.CompletionPercentage = 0
+	} else {
+		todoList.CompletionPercentage = (completed * 100) / total
+	}
 	todoList.UpdatedAt = time.Now()
 	s.store.UpdateTodoList(todoList)
 } 
