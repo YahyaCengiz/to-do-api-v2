@@ -17,7 +17,6 @@ func NewTodoController(todoService *services.TodoService) *TodoController {
 	return &TodoController{todoService: todoService}
 }
 
-// TodoList handlers
 func (c *TodoController) CreateTodoList(w http.ResponseWriter, r *http.Request) {
 	claims := r.Context().Value("claims").(*middleware.Claims)
 	var request struct {
@@ -124,7 +123,6 @@ func (c *TodoController) DeleteTodoList(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// TodoItem handlers
 func (c *TodoController) CreateTodoItem(w http.ResponseWriter, r *http.Request) {
 	claims := r.Context().Value("claims").(*middleware.Claims)
 	listIDStr := r.URL.Query().Get("list_id")

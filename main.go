@@ -11,19 +11,18 @@ import (
 )
 
 func main() {
-	// Initialize dependencies
+
 	store := store.NewStore()
 	todoService := services.NewTodoService(store)
 	userService := services.NewUserService(store)
 
-	// Initialize controllers
+
 	todoController := controllers.NewTodoController(todoService)
 	authController := controllers.NewAuthController(userService)
 
-	// Auth routes
 	http.HandleFunc("/api/login", authController.Login)
 
-	// TodoList routes (protected)
+
 	todoListMux := http.NewServeMux()
 	todoListMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -40,7 +39,7 @@ func main() {
 		}
 	})
 
-	// TodoItem routes (protected)
+
 	todoItemMux := http.NewServeMux()
 	todoItemMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

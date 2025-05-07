@@ -29,12 +29,10 @@ func NewStore() *Store {
 	return s
 }
 
-// TodoList operations
 func (s *Store) CreateTodoList(todoList *models.TodoList) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Generate new ID
 	if len(s.todoLists) == 0 {
 		todoList.ID = 1
 	} else {
@@ -94,20 +92,17 @@ func (s *Store) DeleteTodoList(id int) error {
 	return fmt.Errorf("todo list not found")
 }
 
-// TodoItem operations
 func (s *Store) CreateTodoItem(todoItem *models.TodoItem) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for i := range s.todoLists {
 		if s.todoLists[i].ID == todoItem.TodoListID {
-			// Generate new ID
 			if len(s.todoLists[i].TodoItems) == 0 {
 				todoItem.ID = 1
 			} else {
 				todoItem.ID = s.todoLists[i].TodoItems[len(s.todoLists[i].TodoItems)-1].ID + 1
 			}
-			// Do NOT overwrite user_id here, just append
 			s.todoLists[i].TodoItems = append(s.todoLists[i].TodoItems, *todoItem)
 			return s.saveToFile()
 		}
@@ -165,7 +160,6 @@ func (s *Store) DeleteTodoItem(listID, itemID int) error {
 	return fmt.Errorf("todo item not found")
 }
 
-// User operations
 func (s *Store) GetUsers() []models.User {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -179,7 +173,6 @@ func (s *Store) AddUser(user models.User) error {
 	return s.saveToFile()
 }
 
-// File operations
 func (s *Store) saveToFile() error {
 	data := struct {
 		TodoLists []models.TodoList `json:"todo_lists"`
@@ -208,7 +201,7 @@ func (s *Store) loadFromFile() error {
 	file, err := os.Open(s.filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil // File doesn't exist yet, that's okay
+			return nil
 		}
 		return fmt.Errorf("failed to open file: %w", err)
 	}

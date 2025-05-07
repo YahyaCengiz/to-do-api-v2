@@ -16,7 +16,6 @@ func NewTodoService(store *store.Store) *TodoService {
 	return &TodoService{store: store}
 }
 
-// TodoList operations
 func (s *TodoService) CreateTodoList(name string, userID int) (*models.TodoList, error) {
 	todoList := &models.TodoList{
 		Name:                 name,
@@ -44,7 +43,6 @@ func (s *TodoService) GetTodoList(id int, userID int, role string) (*models.Todo
 	if role != "admin" && todoList.UserID != userID {
 		return nil, errors.New("forbidden")
 	}
-	// Filter out deleted items and items not owned by user (unless admin)
 	filteredItems := make([]models.TodoItem, 0)
 	for _, item := range todoList.TodoItems {
 		if item.DeletedAt.IsZero() && (role == "admin" || item.UserID == userID) {
@@ -106,7 +104,6 @@ func (s *TodoService) DeleteTodoList(id int, userID int, role string) error {
 	return s.store.UpdateTodoList(todoList)
 }
 
-// TodoItem operations
 func (s *TodoService) CreateTodoItem(listID int, content string, userID int, role string) (*models.TodoItem, error) {
 	todoList, err := s.store.GetTodoList(listID)
 	if err != nil {
@@ -128,12 +125,12 @@ func (s *TodoService) CreateTodoItem(listID int, content string, userID int, rol
 		return nil, err
 	}
 
-	// Fetch the pointer from store
+
 	todoList, err = s.store.GetTodoList(listID)
 	if err != nil {
 		return nil, err
 	}
-	// Find the item with the highest ID and matching user_id
+
 	var createdItem *models.TodoItem
 	maxID := -1
 	for i := range todoList.TodoItems {

@@ -33,8 +33,3 @@ func (s *UserService) Login(username, password string) (*models.User, error) {
 func (s *UserService) Register(user models.User) error {
 	return s.store.AddUser(user)
 }
-
-func (s *UserService) GetUserByID(id string) (*models.User, error) {
-	// TODO: Implement get user by ID
-	return nil, nil
-} 
