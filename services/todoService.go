@@ -17,13 +17,14 @@ func NewTodoService(store *store.Store) *TodoService {
 }
 
 // TodoList operations
-func (s *TodoService) CreateTodoList(name string) (*models.TodoList, error) {
+func (s *TodoService) CreateTodoList(name string, userID int) (*models.TodoList, error) {
 	todoList := &models.TodoList{
 		Name:                 name,
 		CreatedAt:           time.Now(),
 		UpdatedAt:           time.Now(),
 		CompletionPercentage: 0,
 		TodoItems:           []models.TodoItem{},
+		UserID:              userID,
 	}
 	
 	if err := s.store.CreateTodoList(todoList); err != nil {
@@ -32,7 +33,7 @@ func (s *TodoService) CreateTodoList(name string) (*models.TodoList, error) {
 	return s.store.GetTodoList(todoList.ID)
 }
 
-func (s *TodoService) GetTodoList(id int) (*models.TodoList, error) {
+func (s *TodoService) GetTodoList(id int, userID int, role string) (*models.TodoList, error) {
 	todoList, err := s.store.GetTodoList(id)
 	if err != nil {
 		return nil, err
@@ -40,10 +41,13 @@ func (s *TodoService) GetTodoList(id int) (*models.TodoList, error) {
 	if !todoList.DeletedAt.IsZero() {
 		return nil, errors.New("todo list not found")
 	}
-	// Filter out deleted items
+	if role != "admin" && todoList.UserID != userID {
+		return nil, errors.New("forbidden")
+	}
+	// Filter out deleted items and items not owned by user (unless admin)
 	filteredItems := make([]models.TodoItem, 0)
 	for _, item := range todoList.TodoItems {
-		if item.DeletedAt.IsZero() {
+		if item.DeletedAt.IsZero() && (role == "admin" || item.UserID == userID) {
 			filteredItems = append(filteredItems, item)
 		}
 	}
@@ -51,18 +55,18 @@ func (s *TodoService) GetTodoList(id int) (*models.TodoList, error) {
 	return todoList, nil
 }
 
-func (s *TodoService) GetAllTodoLists() ([]*models.TodoList, error) {
+func (s *TodoService) GetAllTodoLists(userID int, role string) ([]*models.TodoList, error) {
 	lists, err := s.store.GetAllTodoLists()
 	if err != nil {
 		return nil, err
 	}
 	filteredLists := make([]*models.TodoList, 0)
 	for _, list := range lists {
-		if list.DeletedAt.IsZero() {
-			// Filter out deleted items
+		if list.DeletedAt.IsZero() && (role == "admin" || list.UserID == userID) {
+			// Filter out deleted items and items not owned by user (unless admin)
 			filteredItems := make([]models.TodoItem, 0)
 			for _, item := range list.TodoItems {
-				if item.DeletedAt.IsZero() {
+				if item.DeletedAt.IsZero() && (role == "admin" || item.UserID == userID) {
 					filteredItems = append(filteredItems, item)
 				}
 			}
@@ -73,12 +77,14 @@ func (s *TodoService) GetAllTodoLists() ([]*models.TodoList, error) {
 	return filteredLists, nil
 }
 
-func (s *TodoService) UpdateTodoList(id int, name string) (*models.TodoList, error) {
+func (s *TodoService) UpdateTodoList(id int, name string, userID int, role string) (*models.TodoList, error) {
 	todoList, err := s.store.GetTodoList(id)
 	if err != nil {
 		return nil, err
 	}
-	
+	if role != "admin" && todoList.UserID != userID {
+		return nil, errors.New("forbidden")
+	}
 	todoList.Name = name
 	todoList.UpdatedAt = time.Now()
 	
@@ -88,23 +94,34 @@ func (s *TodoService) UpdateTodoList(id int, name string) (*models.TodoList, err
 	return todoList, nil
 }
 
-func (s *TodoService) DeleteTodoList(id int) error {
+func (s *TodoService) DeleteTodoList(id int, userID int, role string) error {
 	todoList, err := s.store.GetTodoList(id)
 	if err != nil {
 		return err
+	}
+	if role != "admin" && todoList.UserID != userID {
+		return errors.New("forbidden")
 	}
 	todoList.DeletedAt = time.Now()
 	return s.store.UpdateTodoList(todoList)
 }
 
 // TodoItem operations
-func (s *TodoService) CreateTodoItem(listID int, content string) (*models.TodoItem, error) {
+func (s *TodoService) CreateTodoItem(listID int, content string, userID int, role string) (*models.TodoItem, error) {
+	todoList, err := s.store.GetTodoList(listID)
+	if err != nil {
+		return nil, err
+	}
+	if role != "admin" && todoList.UserID != userID {
+		return nil, errors.New("forbidden")
+	}
 	todoItem := &models.TodoItem{
 		TodoListID:  listID,
 		Content:     content,
 		IsCompleted: false,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
+		UserID:      userID,
 	}
 
 	if err := s.store.CreateTodoItem(todoItem); err != nil {
@@ -112,45 +129,49 @@ func (s *TodoService) CreateTodoItem(listID int, content string) (*models.TodoIt
 	}
 
 	// Fetch the pointer from store
-	todoList, err := s.store.GetTodoList(listID)
+	todoList, err = s.store.GetTodoList(listID)
 	if err != nil {
 		return nil, err
 	}
-	if len(todoList.TodoItems) == 0 {
+	// Find the item with the highest ID and matching user_id
+	var createdItem *models.TodoItem
+	maxID := -1
+	for i := range todoList.TodoItems {
+		item := &todoList.TodoItems[i]
+		if item.UserID == userID && item.ID > maxID {
+			maxID = item.ID
+			createdItem = item
+		}
+	}
+	if createdItem == nil {
 		return nil, errors.New("failed to add todo item")
 	}
-	return &todoList.TodoItems[len(todoList.TodoItems)-1], nil
+	return createdItem, nil
 }
 
-func (s *TodoService) UpdateTodoItem(listID, itemID int, content string, isCompleted bool) (*models.TodoItem, error) {
+func (s *TodoService) UpdateTodoItem(listID, itemID int, content string, isCompleted bool, userID int, role string) (*models.TodoItem, error) {
 	todoList, err := s.store.GetTodoList(listID)
 	if err != nil {
 		return nil, err
 	}
-
 	todoItem, err := s.store.GetTodoItem(listID, itemID)
 	if err != nil {
 		return nil, err
 	}
-
-	if todoItem.TodoListID != listID {
-		return nil, errors.New("todo item does not belong to the specified list")
+	if role != "admin" && todoItem.UserID != userID {
+		return nil, errors.New("forbidden")
 	}
-
 	todoItem.Content = content
 	todoItem.IsCompleted = isCompleted
 	todoItem.UpdatedAt = time.Now()
-
 	if err := s.store.UpdateTodoItem(listID, todoItem); err != nil {
 		return nil, err
 	}
-
-	// Update completion percentage
 	s.updateCompletionPercentage(todoList)
 	return todoItem, nil
 }
 
-func (s *TodoService) DeleteTodoItem(listID, itemID int) error {
+func (s *TodoService) DeleteTodoItem(listID, itemID int, userID int, role string) error {
 	todoList, err := s.store.GetTodoList(listID)
 	if err != nil {
 		return err
@@ -158,12 +179,14 @@ func (s *TodoService) DeleteTodoItem(listID, itemID int) error {
 	todoItem, err := s.store.GetTodoItem(listID, itemID)
 	if err != nil {
 		return err
+	}
+	if role != "admin" && todoItem.UserID != userID {
+		return errors.New("forbidden")
 	}
 	todoItem.DeletedAt = time.Now()
 	if err := s.store.UpdateTodoItem(listID, todoItem); err != nil {
 		return err
 	}
-	// Update completion percentage
 	s.updateCompletionPercentage(todoList)
 	return nil
 }

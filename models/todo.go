@@ -10,6 +10,7 @@ type TodoList struct {
 	DeletedAt            time.Time  `json:"deleted_at"`
 	CompletionPercentage int        `json:"completion_percentage"`
 	TodoItems            []TodoItem `json:"todo_items"`
+	UserID               int        `json:"user_id"`
 }
 
 type TodoItem struct {
@@ -20,4 +21,5 @@ type TodoItem struct {
 	DeletedAt   time.Time `json:"deleted_at"`
 	Content     string    `json:"content"`
 	IsCompleted bool      `json:"is_completed"`
+	UserID      int       `json:"user_id"`
 }

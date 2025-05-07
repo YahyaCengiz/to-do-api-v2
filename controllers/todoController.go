@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/YahyaCengiz/todo-v2/middleware"
 	"github.com/YahyaCengiz/todo-v2/services"
 )
 
@@ -18,6 +19,7 @@ func NewTodoController(todoService *services.TodoService) *TodoController {
 
 // TodoList handlers
 func (c *TodoController) CreateTodoList(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value("claims").(*middleware.Claims)
 	var request struct {
 		Name string `json:"name"`
 	}
@@ -27,7 +29,7 @@ func (c *TodoController) CreateTodoList(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	todoList, err := c.todoService.CreateTodoList(request.Name)
+	todoList, err := c.todoService.CreateTodoList(request.Name, claims.UserID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -38,9 +40,10 @@ func (c *TodoController) CreateTodoList(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *TodoController) GetTodoList(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value("claims").(*middleware.Claims)
 	idStr := r.URL.Query().Get("id")
 	if idStr == "" {
-		todoLists, err := c.todoService.GetAllTodoLists()
+		todoLists, err := c.todoService.GetAllTodoLists(claims.UserID, claims.Role)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -56,7 +59,7 @@ func (c *TodoController) GetTodoList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todoList, err := c.todoService.GetTodoList(id)
+	todoList, err := c.todoService.GetTodoList(id, claims.UserID, claims.Role)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -67,6 +70,7 @@ func (c *TodoController) GetTodoList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *TodoController) UpdateTodoList(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value("claims").(*middleware.Claims)
 	idStr := r.URL.Query().Get("id")
 	if idStr == "" {
 		http.Error(w, "ID is required", http.StatusBadRequest)
@@ -88,7 +92,7 @@ func (c *TodoController) UpdateTodoList(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	todoList, err := c.todoService.UpdateTodoList(id, request.Name)
+	todoList, err := c.todoService.UpdateTodoList(id, request.Name, claims.UserID, claims.Role)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -99,6 +103,7 @@ func (c *TodoController) UpdateTodoList(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *TodoController) DeleteTodoList(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value("claims").(*middleware.Claims)
 	idStr := r.URL.Query().Get("id")
 	if idStr == "" {
 		http.Error(w, "ID is required", http.StatusBadRequest)
@@ -111,7 +116,7 @@ func (c *TodoController) DeleteTodoList(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := c.todoService.DeleteTodoList(id); err != nil {
+	if err := c.todoService.DeleteTodoList(id, claims.UserID, claims.Role); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -121,6 +126,7 @@ func (c *TodoController) DeleteTodoList(w http.ResponseWriter, r *http.Request) 
 
 // TodoItem handlers
 func (c *TodoController) CreateTodoItem(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value("claims").(*middleware.Claims)
 	listIDStr := r.URL.Query().Get("list_id")
 	if listIDStr == "" {
 		http.Error(w, "List ID is required", http.StatusBadRequest)
@@ -142,7 +148,7 @@ func (c *TodoController) CreateTodoItem(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	todoItem, err := c.todoService.CreateTodoItem(listID, request.Content)
+	todoItem, err := c.todoService.CreateTodoItem(listID, request.Content, claims.UserID, claims.Role)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -153,6 +159,7 @@ func (c *TodoController) CreateTodoItem(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *TodoController) UpdateTodoItem(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value("claims").(*middleware.Claims)
 	listIDStr := r.URL.Query().Get("list_id")
 	itemIDStr := r.URL.Query().Get("item_id")
 	if listIDStr == "" || itemIDStr == "" {
@@ -182,7 +189,7 @@ func (c *TodoController) UpdateTodoItem(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	todoItem, err := c.todoService.UpdateTodoItem(listID, itemID, request.Content, request.IsCompleted)
+	todoItem, err := c.todoService.UpdateTodoItem(listID, itemID, request.Content, request.IsCompleted, claims.UserID, claims.Role)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -193,6 +200,7 @@ func (c *TodoController) UpdateTodoItem(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *TodoController) DeleteTodoItem(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value("claims").(*middleware.Claims)
 	listIDStr := r.URL.Query().Get("list_id")
 	itemIDStr := r.URL.Query().Get("item_id")
 	if listIDStr == "" || itemIDStr == "" {
@@ -212,7 +220,7 @@ func (c *TodoController) DeleteTodoItem(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := c.todoService.DeleteTodoItem(listID, itemID); err != nil {
+	if err := c.todoService.DeleteTodoItem(listID, itemID, claims.UserID, claims.Role); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

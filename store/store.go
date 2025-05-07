@@ -107,6 +107,7 @@ func (s *Store) CreateTodoItem(todoItem *models.TodoItem) error {
 			} else {
 				todoItem.ID = s.todoLists[i].TodoItems[len(s.todoLists[i].TodoItems)-1].ID + 1
 			}
+			// Do NOT overwrite user_id here, just append
 			s.todoLists[i].TodoItems = append(s.todoLists[i].TodoItems, *todoItem)
 			return s.saveToFile()
 		}
